@@ -1,0 +1,244 @@
+/* Simple client-side app for storing/sharing mechanics tips & tools
+   Data lives in localStorage under "mechToolbox.v1" as JSON.
+*/
+
+const STORAGE_KEY = 'mechToolbox.v1';
+
+/* ---------- Helpers ---------- */
+const get = id => document.getElementById(id);
+const saveData = (data) => localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+const loadData = () => JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || { tips: [], tools: [] };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+let state = loadData();
+
+/* ---------- Initial sample data if empty ---------- */
+if (state.tips.length === 0 && state.tools.length === 0) {
+  state.tips.push({
+    id: uid(),
+    title: "Check tire pressure before long trips",
+    category: "quick",
+    tags: ["tires","safety"],
+    desc: "Always check and set recommended PSI when tires are cold. Underinflation causes extra wear and poor fuel economy.",
+    link: ""
+  });
+  state.tools.push({
+    id: uid(),
+    title: "Digital Torque Wrench (1/2\")",
+    category: "diagnostics",
+    tags: ["torque","fastener"],
+    desc: "Accurate torque for wheels and engine components. Look for 10-150 Nm range for car use.",
+    link: ""
+  });
+  saveData(state);
+}
+
+/* ---------- Rendering ---------- */
+
+function renderList() {
+  const tipsList = get('tips-list');
+  const toolsList = get('tools-list');
+  const q = get('search').value.trim().toLowerCase();
+  const tagFilter = get('tag-filter').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+  const typeFilter = get('filter-type').value;
+
+  // Helper match
+  const matches = (item) => {
+    const text = (item.title + ' ' + item.desc + ' ' + (item.tags||[]).join(' ')).toLowerCase();
+    if (q && !text.includes(q)) return false;
+    if (tagFilter.length) {
+      const itemTags = (item.tags||[]).map(t=>t.toLowerCase());
+      if (!tagFilter.every(tf => itemTags.includes(tf))) return false;
+    }
+    if (typeFilter !== 'all') {
+      if (item.category !== typeFilter) return false;
+    }
+    return true;
+  };
+
+  // Render tips
+  tipsList.innerHTML = '';
+  const tipsToShow = state.tips.filter(matches).sort((a,b)=>b.id.localeCompare(a.id));
+  if (!tipsToShow.length) tipsList.innerHTML = `<div class="card"><p class="meta">No tips found.</p></div>`;
+  tipsToShow.forEach(t => tipsList.appendChild(cardFor(t, 'tip')));
+
+  // Render tools
+  toolsList.innerHTML = '';
+  const toolsToShow = state.tools.filter(matches).sort((a,b)=>b.id.localeCompare(a.id));
+  if (!toolsToShow.length) toolsList.innerHTML = `<div class="card"><p class="meta">No tools found.</p></div>`;
+  toolsToShow.forEach(t => toolsList.appendChild(cardFor(t, 'tool')));
+}
+
+function cardFor(item, kind){
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.innerHTML = `
+    <h3>${escapeHtml(item.title)}</h3>
+    <div class="meta">
+      <div>${kind === 'tip' ? 'Tip' : 'Tool'}</div>
+      <div>${escapeHtml(item.category)}</div>
+      ${item.link ? `<div><a href="${escapeAttr(item.link)}" target="_blank" rel="noopener">link</a></div>` : ''}
+    </div>
+    <p>${escapeHtml(item.desc)}</p>
+    <div class="tags">${(item.tags||[]).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
+    <div class="card-actions">
+      <button class="small-btn" data-action="edit" data-id="${item.id}" data-kind="${kind}">Edit</button>
+      <button class="small-btn warn" data-action="delete" data-id="${item.id}" data-kind="${kind}">Delete</button>
+    </div>
+  `;
+  // action handlers
+  div.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const action = btn.getAttribute('data-action');
+      const id = btn.getAttribute('data-id');
+      const k = btn.getAttribute('data-kind');
+      if (action === 'edit') openModalFor(k, id);
+      if (action === 'delete') {
+        if (confirm('Delete this item?')) {
+          if (k === 'tip') state.tips = state.tips.filter(x=>x.id!==id);
+          else state.tools = state.tools.filter(x=>x.id!==id);
+          saveData(state); renderList();
+        }
+      }
+    });
+  });
+  return div;
+}
+
+/* ---------- Modal / Form ---------- */
+
+const modal = get('modal');
+const form = get('item-form');
+
+function openModalFor(kind='tip', id=null){
+  get('modal-title').textContent = id ? 'Edit Item' : (kind === 'tip' ? 'Add Tip' : 'Add Tool');
+  get('item-type').value = kind === 'tool' ? 'tool' : 'tip';
+  if (id) {
+    const item = (kind === 'tip' ? state.tips : state.tools).find(x=>x.id===id);
+    if (!item) return alert('Item not found');
+    get('item-title').value = item.title;
+    get('item-category').value = item.category || 'quick';
+    get('item-tags').value = (item.tags || []).join(', ');
+    get('item-desc').value = item.desc || '';
+    get('item-link').value = item.link || '';
+    form.dataset.editId = id;
+  } else {
+    form.reset();
+    form.dataset.editId = '';
+  }
+  modal.classList.remove('hidden');
+  get('item-title').focus();
+}
+
+function closeModal(){
+  modal.classList.add('hidden');
+  form.dataset.editId = '';
+}
+
+/* ---------- Utility: sanitize small bits for display (not a full sanitizer) ---------- */
+function escapeHtml(str=''){
+  return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+}
+function escapeAttr(str=''){
+  return String(str).replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  renderList();
+
+  // Nav
+  get('nav-tips').addEventListener('click', ()=>switchPage('tips'));
+  get('nav-tools').addEventListener('click', ()=>switchPage('tools'));
+  get('nav-about').addEventListener('click', ()=>switchPage('about'));
+
+  // Search/filter
+  ['search','tag-filter','filter-type'].forEach(id => {
+    get(id).addEventListener('input', () => renderList());
+  });
+  get('clear-filters').addEventListener('click', ()=>{
+    get('search').value=''; get('tag-filter').value=''; get('filter-type').value='all'; renderList();
+  });
+
+  // Add buttons
+  get('add-tip-btn').addEventListener('click', ()=>{ openModalFor('tip'); });
+  get('add-tool-btn').addEventListener('click', ()=>{ openModalFor('tool'); });
+
+  // Modal actions
+  get('modal-close').addEventListener('click', closeModal);
+  get('cancel-btn').addEventListener('click', closeModal);
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const id = form.dataset.editId || '';
+    const kind = get('item-type').value;
+    const item = {
+      id: id || uid(),
+      title: get('item-title').value.trim(),
+      category: get('item-category').value,
+      tags: get('item-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
+      desc: get('item-desc').value.trim(),
+      link: get('item-link').value.trim()
+    };
+    if (!item.title || !item.desc) return alert('Title and description are required.');
+    if (id) {
+      // update
+      if (kind === 'tip') {
+        state.tips = state.tips.map(x => x.id === id ? item : x);
+      } else {
+        state.tools = state.tools.map(x => x.id === id ? item : x);
+      }
+    } else {
+      // new
+      if (kind === 'tip') state.tips.unshift(item);
+      else state.tools.unshift(item);
+    }
+    saveData(state);
+    closeModal();
+    renderList();
+  });
+
+  // Export / Import
+  get('export-btn').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'mechtoolbox-export.json'; document.body.appendChild(a); a.click();
+    a.remove(); URL.revokeObjectURL(url);
+  });
+  get('import-btn').addEventListener('click', ()=> get('import-file').click());
+  get('import-file').addEventListener('change', async (ev)=>{
+    const f = ev.target.files[0];
+    if (!f) return;
+    if (!confirm('Import will replace current local items. Continue?')) { ev.target.value=''; return; }
+    const text = await f.text();
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.tips && parsed.tools) {
+        state = parsed;
+        saveData(state);
+        renderList();
+        alert('Import complete.');
+      } else {
+        alert('Invalid file format.');
+      }
+    } catch(e){ alert('Invalid JSON.'); }
+    ev.target.value='';
+  });
+
+  // Keyboard: Esc closes modal
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+});
+
+/* ---------- Helpers: page/nav ---------- */
+function switchPage(page){
+  ['tips','tools','about'].forEach(p => {
+    get('nav-' + p).classList.toggle('active', p === page);
+    get('page-' + p).classList.toggle('hidden', p !== page);
+  });
+}
+
+/* ---------- Expose for console (dev) ---------- */
+window.__mechToolbox = {
+  getState: () => state,
+  reset: () => { state = {tips:[], tools:[]}; saveData(state); renderList(); }
+};

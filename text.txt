@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mechanic's Toolbox — Tips & Tools</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>🔧 Mechanic's Toolbox</h1>
+      <nav>
+        <button id="nav-tips" class="nav-btn active">Tips</button>
+        <button id="nav-tools" class="nav-btn">Tools</button>
+        <button id="nav-about" class="nav-btn">About</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Controls -->
+    <section class="controls">
+      <input id="search" type="search" placeholder="Search tips or tools..." />
+      <select id="filter-type">
+        <option value="all">All</option>
+        <option value="quick">Quick Tips</option>
+        <option value="deep">Deep Dive</option>
+      </select>
+      <input id="tag-filter" type="text" placeholder="Filter by tag (comma-separated)" />
+      <button id="clear-filters" class="muted">Clear</button>
+      <div class="right-controls">
+        <button id="add-tip-btn">+ Add Tip</button>
+        <button id="add-tool-btn">+ Add Tool</button>
+        <button id="export-btn" class="muted">Export JSON</button>
+        <input id="import-file" type="file" accept=".json" style="display:none"/>
+        <button id="import-btn" class="muted">Import JSON</button>
+      </div>
+    </section>
+
+    <!-- Tips view -->
+    <section id="page-tips" class="page">
+      <h2>Tips</h2>
+      <div id="tips-list" class="list"></div>
+    </section>
+
+    <!-- Tools view -->
+    <section id="page-tools" class="page hidden">
+      <h2>Tools</h2>
+      <div id="tools-list" class="list"></div>
+    </section>
+
+    <!-- About -->
+    <section id="page-about" class="page hidden">
+      <h2>About</h2>
+      <p>
+        Mechanic's Toolbox is a lightweight place to store and share repair tips,
+        checklists, and recommended tools. Items are stored locally in your browser.
+        Use the export/import feature to share with others.
+      </p>
+    </section>
+  </main>
+
+  <!-- Modal for add/edit -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-inner">
+      <button id="modal-close" class="close">&times;</button>
+      <h3 id="modal-title">Add Item</h3>
+      <form id="item-form">
+        <label>Type
+          <select id="item-type" required>
+            <option value="tip">Tip</option>
+            <option value="tool">Tool</option>
+          </select>
+        </label>
+
+        <label>Title
+          <input id="item-title" type="text" required />
+        </label>
+
+        <label>Category
+          <select id="item-category">
+            <option value="quick">Quick Tip</option>
+            <option value="deep">Deep Dive</option>
+            <option value="safety">Safety</option>
+            <option value="diagnostics">Diagnostics</option>
+          </select>
+        </label>
+
+        <label>Tags (comma separated)
+          <input id="item-tags" type="text" />
+        </label>
+
+        <label>Description / Steps
+          <textarea id="item-desc" rows="6" required></textarea>
+        </label>
+
+        <label>Link (optional)
+          <input id="item-link" type="url" placeholder="https://..." />
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" id="save-btn">Save</button>
+          <button type="button" id="cancel-btn" class="muted">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="site-footer container">
+    <small>Made with ❤️ for mechanics. Data saved in your browser (localStorage).</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
